@@ -8,7 +8,7 @@ def progress_percentage(perc, width=None):
     FULL_BLOCK = '█'
     # this is a gradient of incompleteness
     INCOMPLETE_BLOCK_GRAD = ['░', '▒', '▓']
-
+    
     assert(isinstance(perc, float))
     assert(0. <= perc <= 100.)
     # if width unset use full terminal
@@ -51,7 +51,7 @@ def progress_percentage(perc, width=None):
 
 
 def copy_progress(copied, total):
-    print('\r' + progress_percentage(100*copied/total, width=30), end='')
+    print('\r' + progress_percentage(100*copied/total, width=50), end='')
 
 
 def copyfile(src, dst, *, follow_symlinks=True):
@@ -81,6 +81,7 @@ def copyfile(src, dst, *, follow_symlinks=True):
         size = os.stat(src).st_size
         with open(src, 'rb') as fsrc:
             with open(dst, 'wb') as fdst:
+                #print(src, '->', dst)
                 copyfileobj(fsrc, fdst, callback=copy_progress, total=size)
     return dst
 
@@ -102,6 +103,4 @@ def copy_with_progress(src, dst, *, follow_symlinks=True):
     copyfile(src, dst, follow_symlinks=follow_symlinks)
     shutil.copymode(src, dst)
     return dst
-    
-if __name__ == '__main__':
-    copy_with_progress(sys.argv[1], sys.argv[2])
+
