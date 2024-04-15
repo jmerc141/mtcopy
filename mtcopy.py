@@ -5,22 +5,38 @@
 from os import makedirs, walk
 from os.path import join
 from shutil import copy
-import gui, os, threading, time
+import gui, os, threading, time, copyprog
 
 jobs = []
 srcFiles = []
 t = ''
 chunksize = 0
 
+
 # copy files from source to destination
 def copy_files(i, src, dst):
     c = 0
     l = len(src)
+    print(len(gui.pbs), i, l)
     for idx in range(0, l):
         d = copy(src[idx], dst[idx])
         # set progress bar value for each thread
-        gui.pbs[i]['value'] = (c / l) * 100
+        try:
+            gui.pbs[i]['value'] = (c / l) * 100
+            gui.lbls[i].set(os.path.basename(src[idx]))
+        except IndexError as ie:
+            print('Extra thread but no corresponding gui component')
+        
         c += 1
+
+
+def copy_cli(i, src, dst):
+    c = 0
+    l = len(src)
+    for idx in range(0,l):
+        d = copyprog.copy_with_progress(c, i, src, dst)
+        c += 1
+
 
 def startCopy():
     st = time.perf_counter()
@@ -35,25 +51,17 @@ def startCopy():
     # reset jobs list
     jobs.clear()
     srcFiles.clear()
-
-    print('Done', end)
-
-def resetJobs():
-    global jobs
-    jobs = []
-
-def threadCheck():
-    global chunksize
-    chunksize = round(len(srcFiles) / t)
-    # check if too many threads per file
-    if chunksize == 0:
-        gui.log.insert('end', 'Too many threads')
-
+    gui.writeLog(f'Done in {round(end, 2)}s')
+    
 
 # copy files from src to dest
 def init(src, dest, threads: int):
     global t
-    t = threads
+    global srcFiles
+    srcFiles = []
+    t = int(threads)
+    if not os.path.isdir(src) and not os.path.isdir(dest):
+        raise ValueError('Path must be folder')
     d = os.path.abspath(dest)
     s = os.path.abspath(src)
 
@@ -78,22 +86,31 @@ def init(src, dest, threads: int):
             # set list of destination directories
             dstDirs.append(dest + '\\' + join(nroot, d))
     
+    chunksize = len(srcFiles) // t
+    rem = len(srcFiles) % t
+    print(len(srcFiles), chunksize, rem)
+    # check if too many threads per file
+    if chunksize == 0:
+        return 0
+
     # create the destination directory if needed
     makedirs(dest, exist_ok=True)
     # create all subdirectories
     for d in dstDirs:
         makedirs(d, exist_ok=True)
 
-    threadCheck()
-
     if chunksize > 0:
-        # make list of threads
+        # make list of threads to copy files
         n=0
         for i in range(0, len(srcFiles), chunksize):
+            if n >= t:
+                gui.writeLog(f'Copying {rem} extra files in seperate thread...\n')
             s = srcFiles[i:(i + chunksize)]
             d = dstFiles[i:(i + chunksize)]
             jobs.append(threading.Thread(target=copy_files, args=[n, s, d]))
             n += 1
+
+        return chunksize
         
     
     

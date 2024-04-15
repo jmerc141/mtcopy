@@ -50,11 +50,12 @@ def progress_percentage(perc, width=None):
     return ''.join(progress_bar)
 
 
-def copy_progress(copied, total):
-    print('\r' + progress_percentage(100*copied/total, width=50), end='')
+def copy_progress(perc, indx, copied, total):
+    print(perc, indx)
+    print(progress_percentage(100*copied/total, width=50), end='')
 
 
-def copyfile(src, dst, *, follow_symlinks=True):
+def copyfile(perc, indx, src, dst, *, follow_symlinks=True):
     """Copy data from src to dst.
 
     If follow_symlinks is not set and src is a symbolic link, a new
@@ -82,11 +83,11 @@ def copyfile(src, dst, *, follow_symlinks=True):
         with open(src, 'rb') as fsrc:
             with open(dst, 'wb') as fdst:
                 #print(src, '->', dst)
-                copyfileobj(fsrc, fdst, callback=copy_progress, total=size)
+                copyfileobj(perc, indx, fsrc, fdst, callback=copy_progress, total=size)
     return dst
 
 
-def copyfileobj(fsrc, fdst, callback, total, length=16*1024):
+def copyfileobj(perc, indx, fsrc, fdst, callback, total, length=16*1024):
     copied = 0
     while True:
         buf = fsrc.read(length)
@@ -94,13 +95,13 @@ def copyfileobj(fsrc, fdst, callback, total, length=16*1024):
             break
         fdst.write(buf)
         copied += len(buf)
-        callback(copied, total=total)
+        callback(perc, indx, copied, total=total)
 
-
-def copy_with_progress(src, dst, *, follow_symlinks=True):
-    if os.path.isdir(dst):
-        dst = os.path.join(dst, os.path.basename(src))
-    copyfile(src, dst, follow_symlinks=follow_symlinks)
+# call this one
+def copy_with_progress(perc, indx, src, dst, *, follow_symlinks=True):
+    #if os.path.isdir(dst):
+    #    dst = os.path.join(dst, os.path.basename(src))
+    copyfile(perc, indx, src, dst, follow_symlinks=follow_symlinks)
     shutil.copymode(src, dst)
-    return dst
+    #return dst
 
