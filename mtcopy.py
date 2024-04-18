@@ -14,19 +14,18 @@ chunksize = 0
 
 
 # copy files from source to destination
-def copy_files(i, src, dst):
+def copy_files(i, src, dst, length):
     c = 0
-    l = len(src)
-    print(len(gui.pbs), i, l)
-    for idx in range(0, l):
+    print(i, length)
+    for idx in range(0, len(src)):
         d = copy(src[idx], dst[idx])
         # set progress bar value for each thread
         try:
-            gui.pbs[i]['value'] = (c / l) * 100
+            gui.pbs[i]['value'] = (c / length) * 100
             gui.lbls[i].set(os.path.basename(src[idx]))
         except IndexError as ie:
             print('Extra thread but no corresponding gui component')
-        
+            pass
         c += 1
 
 
@@ -86,8 +85,16 @@ def init(src, dest, threads: int):
             # set list of destination directories
             dstDirs.append(dest + '\\' + join(nroot, d))
     
-    chunksize = len(srcFiles) // t
+    # The most rem will be is t-1
     rem = len(srcFiles) % t
+    #if rem > 0:
+        # split files among t-1 threads and use last thread for remainder
+    #    rem = len(srcFiles) % (t-1)
+    #    chunksize = len(srcFiles) // (t-1)
+    #else:
+        # split files evenly
+    chunksize = len(srcFiles) // t
+
     print(len(srcFiles), chunksize, rem)
     # check if too many threads per file
     if chunksize == 0:
@@ -99,19 +106,19 @@ def init(src, dest, threads: int):
     for d in dstDirs:
         makedirs(d, exist_ok=True)
 
+
     if chunksize > 0:
         # make list of threads to copy files
         n=0
-        for i in range(0, len(srcFiles), chunksize):
-            if n >= t:
-                gui.writeLog(f'Copying {rem} extra files in seperate thread...\n')
+        s = []
+        d = []
+        for i in range(0, len(srcFiles), chunksize+rem):
+            print(i, i+chunksize)
             s = srcFiles[i:(i + chunksize)]
             d = dstFiles[i:(i + chunksize)]
-            jobs.append(threading.Thread(target=copy_files, args=[n, s, d]))
+            jobs.append(threading.Thread(target=copy_files, args=[n, s, d, len(s)-1]))
             n += 1
+        
+    print(len(jobs))
+    return chunksize
 
-        return chunksize
-        
-    
-    
-        

@@ -1,4 +1,7 @@
-
+'''
+Put loop in threadSelect for when a number is typed
+into the spinbox
+'''
 
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -30,9 +33,10 @@ log = ''
 
 
 def threadSelect():
+        print(threadnum.get())
         x = threadnum.get()
         if x == '':
-            # auto
+            # auto, os.cpu_count()
             return
         
         settings.s['threads'] = x
@@ -57,13 +61,13 @@ def threadSelect():
 def adjPB(x, c, r):
     if x > len(sbfs):
         bFrame.columnconfigure(c, weight=1)
-        bFrame.rowconfigure(r, weight=1)
+        #bFrame.rowconfigure(r, weight=1)
         subFrame = tk.Frame(bFrame, padx=5, pady=0)
         lbls.append(tk.StringVar())
         sbfs.append(subFrame)
         pbs.append(ttk.Progressbar(sbfs[x-1], orient='horizontal', mode='determinate'))
         pbs[x-1].pack(fill='x')
-        tk.Label(sbfs[x-1], text='here', textvariable=lbls[x-1], borderwidth=5).pack()
+        tk.Label(sbfs[x-1], text='here', textvariable=lbls[x-1], width=100).pack()
         sbfs[x-1].grid(row=r, column=c, sticky='ew')
     elif x < len(sbfs):
         sbfs[x].grid_forget()
@@ -78,6 +82,7 @@ def updatePb(idx, val):
 
 def writeLog(txt: str):
     log.config(state='normal')
+    txt += '\n'
     log.insert('end', txt)
     log.config(state='disabled')
 
@@ -100,13 +105,12 @@ def startCopy():
     if os.path.exists(s) and os.path.exists(d):
         if os.path.isdir(s) and os.path.isdir(d):
             ret = mtcopy.init(src=s, dest=d, threads=settings.s['threads'])
-            print('ret:', ret)
             if ret > 0:
                 # Make a new thread otherwise gui main thread hangs during copy
                 t = threading.Thread(target=mtcopy.startCopy)
                 t.start()
             else:
-                writeLog(f'Need at least {len(mtcopy.srcFiles)} threads\n')
+                writeLog(f'Need at least {len(mtcopy.srcFiles)} threads')
         else:
             writeLog('Paths must be folders')
     else:
@@ -115,6 +119,7 @@ def startCopy():
 def onClose():
     if isinstance(t, threading.Thread):
         if t.isalive():
+            print('joining thread')
             t.join()
     window.destroy()
 
@@ -146,7 +151,8 @@ def mainGui():
 
     # Bottom area
     lb = ttk.Label(midFrame, text=f'Threads to use: ')
-    thSpinbox = ttk.Spinbox(midFrame, textvariable=threadnum, values=list(range(1, 33, 1)), increment=1, width=5, command=threadSelect)
+    thSpinbox = ttk.Spinbox(midFrame, textvariable=threadnum, values=list(range(1, 33, 1)),
+                             justify='center', increment=1, width=5, command=threadSelect)
 
     ttk.Separator(midFrame, orient='horizontal').pack(fill='x', side='top')
     lb.pack()

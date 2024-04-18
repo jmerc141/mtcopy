@@ -1,11 +1,6 @@
 '''
-Because number of files mod number of threads is not 0,
-an extra thread may be neccasary to copy up to (threads - 1)
-extra files
-If last (threads - 1) files are big and there is a remainder,
-they will be copied in the hidden extra thread which may take a
-while
-
+Last thread may have a few more or less files than the rest,
+because of remainder in total_files // threads
 '''
 
 import sys, mtcopy, gui
