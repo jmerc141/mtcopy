@@ -1,5 +1,10 @@
-import os, sys
-import shutil
+'''
+    Prints progressbar to cli
+'''
+
+import os, shutil, settings
+
+pbs = []
 
 def progress_percentage(perc, width=None):
     # This will only work for python 3.3+ due to use of
@@ -50,9 +55,13 @@ def progress_percentage(perc, width=None):
     return ''.join(progress_bar)
 
 
-def copy_progress(perc, indx, copied, total):
-    print(perc, indx)
-    print(progress_percentage(100*copied/total, width=50), end='')
+def copy_progress(indx, copied, total, fname):
+    # Move the cursor to the top left
+    print('\033[H', end='')
+    # Print 2 newlines per index, the progress, then a newline for the filename
+    # followed by a line clear so the names dont stay, then the actual filename
+    print('\n\n' * indx + progress_percentage(100*copied/total, width=80) +
+          '\n\033[K' + fname, end='')
 
 
 def copyfile(perc, indx, src, dst, *, follow_symlinks=True):
@@ -99,9 +108,7 @@ def copyfileobj(perc, indx, fsrc, fdst, callback, total, length=16*1024):
 
 # call this one
 def copy_with_progress(perc, indx, src, dst, *, follow_symlinks=True):
-    #if os.path.isdir(dst):
-    #    dst = os.path.join(dst, os.path.basename(src))
     copyfile(perc, indx, src, dst, follow_symlinks=follow_symlinks)
     shutil.copymode(src, dst)
-    #return dst
+
 

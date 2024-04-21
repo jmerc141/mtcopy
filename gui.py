@@ -1,11 +1,10 @@
 '''
-Put loop in threadSelect for when a number is typed
-into the spinbox
+Add warning if thread > 32 to use cli version
 '''
 
 import tkinter as tk
 from tkinter import ttk, filedialog
-import os, mtcopy, settings, threading, math
+import os, mtcopy, settings, threading
 
 window = tk.Tk()
 s = ttk.Style()
@@ -32,9 +31,7 @@ t = ''
 log = ''
 
 
-def threadSelect():
-        print(threadnum.get())
-        x = threadnum.get()
+def threadSelect(x):
         if x == '':
             # auto, os.cpu_count()
             return
@@ -74,6 +71,18 @@ def adjPB(x, c, r):
         lbls.pop()
         pbs.pop()
         sbfs.pop()
+
+
+def threadUp():
+    settings.s['threads'] = threadnum.get() + 1
+    threadnum.set(settings.s['threads'])
+    threadSelect(settings.s['threads'])
+
+
+def threadDown():
+    settings.s['threads'] = threadnum.get() - 1
+    threadnum.set(settings.s['threads'])
+    threadSelect(settings.s['threads'])
 
 
 def updatePb(idx, val):
@@ -131,8 +140,8 @@ def incThread():
     
 
 def mainGui():
-    window.geometry('700x500')
-    window.resizable(False, False)
+    window.geometry('700x550')
+    #window.resizable(False, False)
     window.title('mtCopy')
     window.protocol("WM_DELETE_WINDOW", onClose)
     
@@ -151,12 +160,21 @@ def mainGui():
 
     # Bottom area
     lb = ttk.Label(midFrame, text=f'Threads to use: ')
-    thSpinbox = ttk.Spinbox(midFrame, textvariable=threadnum, values=list(range(1, 33, 1)),
-                             justify='center', increment=1, width=5, command=threadSelect)
+    thChange = ttk.Frame(midFrame, padding=3)
+    minus = ttk.Button(thChange, text='-', width=3, command=threadSelect)
+    thLabel = ttk.Label(thChange, textvariable=threadnum)
+    plus = ttk.Button(thChange, text='+', width=3, command=threadUp)
+    #thSpinbox = ttk.Spinbox(midFrame, textvariable=threadnum, values=list(range(1, 33, 1)),
+    #                         justify='center', increment=1, width=5, command=threadSelect, state='readonly')
 
     ttk.Separator(midFrame, orient='horizontal').pack(fill='x', side='top')
     lb.pack()
-    thSpinbox.pack()
+    #thSpinbox.pack()
+    minus.grid(row=0, column=0)
+    thLabel.grid(row=0, column=1, padx=10)
+    plus.grid(row=0, column=2)
+    thChange.pack()
+    
     
     # Upper right area
     global log
