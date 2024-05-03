@@ -5,10 +5,11 @@
 from os import makedirs, walk
 from os.path import join
 from shutil import copy
-import gui, os, threading, time, copyprog
+import newgui, os, threading, time, copyprog
 
 cli = False
-
+q = False
+gui = ''
 # List of threads
 jobs = []
 # List of source files with full path to be copied
@@ -28,16 +29,13 @@ chunksize = 0
     dst: chunk of destination files
 '''
 def copy_files(i, src, dst):
-    c = 0
-    length = len(src)-1
-    print(i, length)
+    c = 1
+    length = len(src)
+    #print(i, length)
     for idx in range(0, len(src)):
-        d = copy(src[idx], dst[idx])
-        # set progress bar value for each thread
-        # number of threads and i should be the same
-        # else IndexError
-        gui.pbs[i]['value'] = (c / length) * 100
-        gui.lbls[i].set(os.path.basename(src[idx]))
+        copy(src[idx], dst[idx])
+        newgui.setPb(i, (c / length) * 100)
+        newgui.setLbl(i, os.path.basename(src[idx]))
         c += 1
 
 
@@ -50,12 +48,29 @@ def copy_files(i, src, dst):
 def copy_cli(i, src, dst):
     c = 0
     length = len(src)-1
-    #print(i, length)
     for idx in range(0, len(src)):
-        d = copy(src[idx], dst[idx])
+        copy(src[idx], dst[idx])
         d = copyprog.copy_progress(i, c, length, os.path.basename(src[idx]))
         c += 1
 
+
+'''
+    Copies files without updating any gui element or writing to console,
+    should be quicker
+'''
+def copy_quick(i, src, dst):
+    for idx in range(0, len(src)):
+        d = copy(src[idx], dst[idx])
+
+
+def copy_old(i, src, dst):
+    c = 1
+    length = len(src)
+    for idx in range(0, len(src)):
+        copy(src[idx], dst[idx])
+        gui.pbs[i]['value'] = (c / length) * 100
+        gui.lbls[i].set(os.path.basename(src[idx]))
+        c += 1
 
 '''
     Start all copy jobs in n threads and
@@ -68,15 +83,20 @@ def startCopy():
 
     for j in jobs:
         j.join()
-
-    end = time.perf_counter() - st
     
+    end = time.perf_counter() - st
+
+
     # reset jobs list
     lenPrevJob = len(jobs)
     jobs.clear()
     srcFiles.clear()
+
+    if q == True:
+        print(end)
+
     if cli == False:
-        gui.writeLog(f'Done in {round(end, 2)}s')
+        newgui.popup(f'Done in {round(end, 2)}s')
     else:
         print('\n' * lenPrevJob + f'\033[KDone in {round(end, 2)}s')
         print(lenPrevJob)
@@ -108,16 +128,19 @@ def createJobs(func, remainder):
     and creates directory structure. Finally creates jobs list of threads to
     execute with corresponding file chunks
 '''
-def init(src, dest, threads: int, cl=False):
+def init(src, dest, threads: int, cl=False, quick=False, old=False):
     global t
     global srcFiles
     global dstFiles
     global cli
+    global q
     global chunksize
 
     srcFiles = []
     t = int(threads)
     cli = cl
+    q = quick
+
     if not os.path.isdir(src) and not os.path.isdir(dest):
         raise ValueError('Path must be folder')
     d = os.path.abspath(dest)
@@ -159,12 +182,20 @@ def init(src, dest, threads: int, cl=False):
         makedirs(d, exist_ok=True)
 
     if chunksize > 0:
-        if cli == False:
+        if old == True:
+            global gui
+            import gui
+            createJobs(copy_old, rem)
+            return chunksize
+        if cli == False and quick == False:
             createJobs(copy_files, rem)
-        else:
+        elif cli == True and quick == False:
             os.system('cls||clear')
             createJobs(copy_cli, rem)
-        startCopy()
+            startCopy()
+        elif cli == False and quick == True:
+            createJobs(copy_quick, rem)
+            startCopy()
         
     return chunksize
 

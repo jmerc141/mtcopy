@@ -9,11 +9,11 @@ Fix:
 
 '''
 
-import sys, mtcopy, newgui
+import sys, gui
 
 # entry point
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        newgui.App('park', 'dark')
+        gui.mainGui()
     else:
         print('No args plz')

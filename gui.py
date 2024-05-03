@@ -1,5 +1,6 @@
 '''
-Add warning if thread > 32 to use cli version
+Old GUI, faster then modern
+rearrange to be like modern
 '''
 
 import tkinter as tk
@@ -21,9 +22,6 @@ srcTxt = tk.StringVar()
 dstTxt = tk.StringVar()
 threadnum = tk.IntVar()
 threadnum.set(0)
-
-srcTxt.set('C:\\Users\\mercantj\\Downloads\\S1000D Issue 5.0\\S1000D Issue 5.0 Data Dictionary')
-dstTxt.set('C:\\Users\\mercantj\\Desktop\\sandbox\\py\\mtcopy\\to')
 
 # copying thread
 t = ''
@@ -113,7 +111,7 @@ def startCopy():
 
     if os.path.exists(s) and os.path.exists(d):
         if os.path.isdir(s) and os.path.isdir(d):
-            ret = mtcopy.init(src=s, dest=d, threads=settings.s['threads'])
+            ret = mtcopy.init(src=s, dest=d, threads=settings.s['threads'], old=True)
             if ret > 0:
                 # Make a new thread otherwise gui main thread hangs during copy
                 t = threading.Thread(target=mtcopy.startCopy)
