@@ -1,14 +1,9 @@
-'''
-
-'''
-
 from os import makedirs, walk
 from os.path import join
 from shutil import copy
-import newgui, os, threading, time, copyprog
+import newgui, os, threading, time, copyprog, hashlib
 
 cli = False
-q = False
 gui = ''
 # List of threads
 jobs = []
@@ -31,12 +26,53 @@ chunksize = 0
 def copy_files(i, src, dst):
     c = 1
     length = len(src)
-    #print(i, length)
     for idx in range(0, len(src)):
         copy(src[idx], dst[idx])
         newgui.setPb(i, (c / length) * 100)
         newgui.setLbl(i, os.path.basename(src[idx]))
         c += 1
+
+'''
+
+'''
+def copy_safe(i, src, dst):
+    c = 1
+    md5src = hashlib.md5()
+    md5dst = hashlib.md5()
+    length = len(src)
+    for idx in range(0, len(src)):
+        with open(src[idx], 'rb') as fsrc:
+            with open(dst[idx], 'wb') as fdst:
+                while True:
+                    buf = fsrc.read(65536)
+                    if not buf:
+                        break
+                    fdst.write(buf)
+                    md5src.update(buf)
+                    
+        
+        # Will be slow if dest is network / slow media
+        # Creating destination hash
+        '''
+        with open(dst[idx], 'rb') as d:
+            while True:
+                buf = d.read(65536)
+                if not buf:
+                    break
+                md5dst.update(buf)
+        '''
+        res = hashlib.md5(open(dst[idx], 'rb').read()).hexdigest()
+        
+        # TODO Try to copy file again
+        if not md5src.hexdigest() == res:
+            choice = newgui.popupYN('Hashes do not match, quitting')
+            print(choice)
+            break
+        else:
+            #print('Hashes match:', md5src.hexdigest())
+            newgui.setPb(i, (c / length) * 100)
+            newgui.setLbl(i, os.path.basename(src[idx]))
+            c += 1
 
 
 '''
@@ -60,7 +96,7 @@ def copy_cli(i, src, dst):
 '''
 def copy_quick(i, src, dst):
     for idx in range(0, len(src)):
-        d = copy(src[idx], dst[idx])
+        copy(src[idx], dst[idx])
 
 
 def copy_old(i, src, dst):
@@ -86,14 +122,10 @@ def startCopy():
     
     end = time.perf_counter() - st
 
-
     # reset jobs list
     lenPrevJob = len(jobs)
     jobs.clear()
     srcFiles.clear()
-
-    if q == True:
-        print(end)
 
     if cli == False:
         newgui.popup(f'Done in {round(end, 2)}s')
@@ -101,6 +133,7 @@ def startCopy():
         print('\n' * lenPrevJob + f'\033[KDone in {round(end, 2)}s')
         print(lenPrevJob)
     
+
 '''
     Splits files in sourcefile list into semi-even chunks which 
     are assigned to a thread.
@@ -118,7 +151,7 @@ def createJobs(func, remainder):
             d.append(dstFiles[remidx])
             remainder -= 1
             remidx -= 1
-        jobs.append(threading.Thread(target=func, args=[th, s, d]))
+        jobs.append(threading.Thread(target=func, args=[th+1, s, d]))
 
 
 '''
@@ -128,7 +161,7 @@ def createJobs(func, remainder):
     and creates directory structure. Finally creates jobs list of threads to
     execute with corresponding file chunks
 '''
-def init(src, dest, threads: int, cl=False, quick=False, old=False):
+def init(src, dest, threads: int, cl=False, quick=False, old=False, safe=False):
     global t
     global srcFiles
     global dstFiles
@@ -169,7 +202,7 @@ def init(src, dest, threads: int, cl=False, quick=False, old=False):
     # The most rem will be is t-1
     rem = len(srcFiles) % t
     chunksize = len(srcFiles) // t
-    print(chunksize)
+    #print(chunksize)
 
     # check if too many threads per file
     if chunksize == 0:
@@ -181,21 +214,24 @@ def init(src, dest, threads: int, cl=False, quick=False, old=False):
     for d in dstDirs:
         makedirs(d, exist_ok=True)
 
+    # ONLY CALL startCopy() FOR CLI
     if chunksize > 0:
-        if old == True:
+        if old:
             global gui
             import gui
             createJobs(copy_old, rem)
             return chunksize
-        if cli == False and quick == False:
+        if not cli and not quick and not safe:
             createJobs(copy_files, rem)
-        elif cli == True and quick == False:
+        elif cli and not quick and not safe:
             os.system('cls||clear')
             createJobs(copy_cli, rem)
             startCopy()
-        elif cli == False and quick == True:
+        elif cli and quick and not safe:
             createJobs(copy_quick, rem)
             startCopy()
+        elif safe:
+            createJobs(copy_safe, rem)
         
     return chunksize
 

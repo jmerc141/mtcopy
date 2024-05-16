@@ -12,6 +12,8 @@ import settings, os, mtcopy, threading
 pbs  = [0,]
 # List of labels, static for use with mtcopy
 lbls = [0,]
+# List of labels that show percent next to progressbar
+lpercent = [0,]
 # Global Source Button definition
 srcBtn = ''
 # Global Destination Button definition
@@ -23,21 +25,26 @@ sbox = ''
 # Global copy thread
 t = ''
 
+yn = ''
+
 '''
-    Sets the value of the indexed progressbar
+    Sets the value of the indexed progressbar and the corresponding label
     i: index of pbs
     v: value to set progressbar to
 '''
 def setPb(i: int, v: float) -> None:
     pbs[i]['value'] = v
+    lpercent[i].set(f'{round(v, 2):05}%')
+
 
 '''
     Sets the value of the indexed label (filename)
     i: index of lbls
     t: text to set it to
 '''
-def setLbl(i: int, t :str):
+def setLbl(i: int, t: str):
     lbls[i].set(t)
+
 
 '''
     Make a small pop-up window appear with a message and ok button
@@ -46,8 +53,8 @@ def setLbl(i: int, t :str):
 def popup(msg=''):
     win = tk.Toplevel()
     win.wm_title("Info")
-    w = 200
-    h = 200
+    w = 250
+    h = 100
     ws = win.winfo_screenwidth()
     hs = win.winfo_screenheight()
     x = (ws/2) - (w/2)
@@ -66,6 +73,50 @@ def popup(msg=''):
     fr.rowconfigure(1, weight=1)
 
 
+
+'''
+    Make a small pop-up window appear with a message and ok button
+    msg: text of the popup window
+'''
+def popupYN(msg=''):
+    global choice
+    win = tk.Toplevel()
+    win.wm_title("Info")
+
+    def retry():
+        global choice
+        win.destroy()
+        choice = True
+    
+    def no():
+        global choice
+        win.destroy()
+        choice = False
+
+    w = 400
+    h = 100
+    ws = win.winfo_screenwidth()
+    hs = win.winfo_screenheight()
+    x = (ws/2) - (w/2)
+    y = (hs/2) - (h/2)
+    win.geometry('%dx%d+%d+%d' % (w,h,x,y))
+    fr = ttk.Frame(win, padding=10)
+    fr.pack(fill='both', expand=True)
+    l = ttk.Label(fr, text=msg)
+    l.grid(row=0, column=0, columnspan=2)
+
+    y = ttk.Button(fr, text="Yes", command=retry)
+    n = ttk.Button(fr, text='No', command=no)
+    y.grid(row=1, column=0)
+    n.grid(row=1, column=1)
+
+    fr.columnconfigure(0, weight=1)
+    fr.rowconfigure(0, weight=1)
+    fr.rowconfigure(1, weight=1)
+
+    return choice
+
+
 '''
     Disable ui elements, usually during a copy
 '''
@@ -75,6 +126,7 @@ def disableButtons():
     dstBtn.config(state='disabled')
     stbtn.config(state='disabled')
 
+
 '''
     Enable ui elements, after copy is done
 '''
@@ -83,6 +135,7 @@ def enableButtons():
     srcBtn.config(state='enabled')
     dstBtn.config(state='enabled')
     stbtn.config(state='enabled')
+
 
 '''
     Main GUI class
@@ -98,7 +151,7 @@ class App(TKMT.ThemedTKinterFrame):
 
         if os.path.exists(s) and os.path.exists(d):
             if os.path.isdir(s) and os.path.isdir(d):
-                ret = mtcopy.init(src=s, dest=d, threads=settings.s['threads'])
+                ret = mtcopy.init(src=s, dest=d, safe=self.safe.get(), threads=settings.s['threads'])
                 if ret > 0:
                     # Make a new thread otherwise gui main thread hangs during copy
                     t = threading.Thread(target=mtcopy.startCopy)
@@ -159,7 +212,6 @@ class App(TKMT.ThemedTKinterFrame):
         elif x > 24 and x <= 32:
             self.addSubFrame(x, x-24, 3)
 
-
     '''
         Adds a subframe to bFrame
         x: number of threads
@@ -167,19 +219,26 @@ class App(TKMT.ThemedTKinterFrame):
         c: column to place
     '''
     def addSubFrame(self, x, r, c):
-        print(x, len(self.sbfs))
+        #print(x, len(self.sbfs))
         self.bFrame.master.columnconfigure(c, weight=1)
         subf = ttk.Frame(self.bFrame.master, padding=0)
-        #subf.columnconfigure(0, weight=1)
+        
         lbls.append(tk.StringVar())
+        lpercent.append(tk.StringVar())
         self.sbfs.append(subf)
+        subf.columnconfigure(0, weight=1)
+
         pb = ttk.Progressbar(self.sbfs[x], mode='determinate')
-        pb.grid(row=0, column=0, sticky='ew')
+        percent = ttk.Label(self.sbfs[x], text='100%', textvariable=lpercent[x])
+        
+        l = ttk.Label(self.sbfs[x], text='here', anchor='center', textvariable=lbls[x])
+        
         pbs.append(pb)
-        l = ttk.Label(self.sbfs[x], text='here', anchor='center', textvariable=lbls[x], width=150)
+
+        pb.grid(row=0, column=0, sticky='ew')
+        percent.grid(row=0, column=1, sticky='ew', padx=5)
         l.grid(row=1, column=0, sticky='ew')
         subf.grid(row=r, column=c, padx=10, pady=10, sticky='ew')
-        
 
     '''
         Removes the last subframe
@@ -219,11 +278,13 @@ class App(TKMT.ThemedTKinterFrame):
             settings.s['dst'] = os.path.abspath(f)
             self.dstTxt.set(settings.s['dst'])
 
+
     '''
         Initialize all GUI elements
     '''
     def __init__(self, theme, mode, usecommandlineargs=True, usethemeconfigfile=True):
-        super().__init__("TITLE", theme, mode, usecommandlineargs, usethemeconfigfile)
+        super().__init__("MtCopy", theme, mode, usecommandlineargs, usethemeconfigfile)
+
         self.master.protocol("WM_DELETE_WINDOW", self.onClose)
         
         global srcBtn
@@ -233,7 +294,6 @@ class App(TKMT.ThemedTKinterFrame):
 
         # 0th spot will be empty so subFrames match spinbox value
         self.sbfs = [0,]
-        
         # Stringvar to hold source path
         self.srcTxt = tk.StringVar()
         # Stringvar to hold destination path
@@ -247,30 +307,34 @@ class App(TKMT.ThemedTKinterFrame):
 
         # Main frame
         self.mainFrame = self.addFrame('main', row=0, col=0, sticky='new', padx=5, pady=5)
+        # Strech Folder select frame
         self.mainFrame.master.columnconfigure(0, weight=1)
-        self.mainFrame.master.columnconfigure(1, weight=1)
 
         self.tFrame = self.mainFrame.addLabelFrame('Folders', row=0, col=0, padx=5, pady=5)
+        # Center entries and buttons
         self.tFrame.master.columnconfigure(0, weight=1)
         
         srcEnt = self.tFrame.Entry(self.srcTxt, row=0, col=0, pady=5, sticky='ew')
         srcBtn = self.tFrame.Button('Source', self.getSourceDir, row=0, col=1, pady=5, sticky='e')
         dstEnt = self.tFrame.Entry(self.dstTxt, row=1, col=0, sticky='ew')
         dstBtn = self.tFrame.Button('Destination', self.getDestDir, row=1, col=1, pady=5, sticky='e')
-
         
-        # Mid
+        # Thread select frame
         self.midFrame = self.mainFrame.addLabelFrame('Thread select', row=0, col=1, pady=5, padx=5)       
         
-        sbox = self.midFrame.NumericalSpinbox(0, 32, 1, self.threadnum, row=0, col=0, sticky='n', widgetkwargs={'cursor': 'hand2', 'command': self.threadSelect})
+        sbox = self.midFrame.NumericalSpinbox(0, 32, 1, self.threadnum, row=0, col=0, sticky='n', colspan=2,
+                                              widgetkwargs={'cursor': 'hand2', 'command': self.threadSelect})
         # Bind enter button to threadSelectR to clear and set amount of progressbars
         sbox.bind('<Return>', self.threadSelectR)
 
         stbtn = self.midFrame.AccentButton('Start', self.startCopy, row=1, col=0, pady=5, sticky='n')
+        self.safe = tk.BooleanVar()
+        safeBtn = self.midFrame.Checkbutton('Safe', self.safe, row=1, col=1)
 
         # Center spinbox and start button
         self.midFrame.master.columnconfigure(0, weight=1)
 
+        # Bottom frame
         self.bFrame = self.mainFrame.addLabelFrame('Threads', row=1, col=0, colspan=2, pady=(5,10), padx=5, widgetkwargs={'height': 50})
         
         # Make only the bottom frame resizable, otherwise frames jump when adding a progressbar

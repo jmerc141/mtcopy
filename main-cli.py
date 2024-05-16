@@ -23,6 +23,6 @@ if __name__ == '__main__':
             source = sys.argv[1]
             destin = sys.argv[2]
             threads = sys.argv[3]
-            mtcopy.init(source, destin, threads, cl=False, quick=True)
+            mtcopy.init(source, destin, threads, cl=True, quick=True)
     else:
         print('need source destination number_of_threads')

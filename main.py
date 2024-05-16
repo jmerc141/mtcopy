@@ -4,8 +4,11 @@ because of remainder in total_files // threads
 
 I'm leaving gui here because it is faster than the modern gui
 
+Safe copy not working
+
 Fix:
     closing while copying thread
+    do another copy after finishing one
 
 '''
 
